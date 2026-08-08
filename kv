@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>商品訂購</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif;
+      background: #F7F7F7;
+      margin: 0;
+      padding: 0 0 90px;
+      color: #222222;
+    }
+    #loading { text-align: center; padding: 60px 16px; color: #777777; font-size: 14px; }
+
+    header {
+      background: url('https://drive.google.com/uc?export=view&id=1lKogv8QE4hWQEpTSp89HZ7_2KV06M3gs') center/cover no-repeat;
+      height: 160px;
+      padding: 0;
+    }
+
+    .notice {
+      margin: 14px 16px 0;
+      background: #fff;
+      border: 1px solid #EAE5F1;
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #222222;
+      white-space: pre-wrap;
+    }
+
+    #shopView { display: none; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      padding: 14px 16px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(28,58,94,0.1);
+      display: flex;
+      flex-direction: column;
+    }
+    .card img {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      object-fit: cover;
+      background: #EAE5F1;
+      display: block;
+    }
+    .card .noimg {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      background: #EAE5F1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #999999;
+      font-size: 12px;
+    }
+    .card .info { padding: 10px 10px 12px; flex: 1; display: flex; flex-direction: column; }
+    .card .name { font-size: 13px; font-weight: 600; margin-bottom: 4px; line-height: 1.4; flex: 1; }
+    .card .price { font-size: 14px; font-weight: 700; color: #6D5A8D; margin-bottom: 8px; }
+    .card { cursor: pointer; }
+    .card .info .price { margin-bottom: 0; }
+
+    .cart-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: #6D5A8D; color: #fff;
+      padding: 12px 16px;
+      display: flex; align-items: center; justify-content: space-between;
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+    }
+    .cart-bar .count { font-size: 13px; }
+    .cart-bar button {
+      background: #fff; color: #6D5A8D; border: none; border-radius: 6px;
+      padding: 8px 18px; font-size: 14px; font-weight: 700;
+    }
+
+    .overlay {
+      display: none;
+      position: fixed; inset: 0; background: rgba(20,41,74,0.4);
+      z-index: 10;
+    }
+    .overlay.show { display: block; }
+    .sheet {
+      position: fixed; left: 0; right: 0; bottom: 0;
+      background: #f5f9fd;
+      border-radius: 16px 16px 0 0;
+      max-height: 85vh;
+      overflow-y: auto;
+      z-index: 11;
+      padding: 16px 16px 24px;
+      transform: translateY(100%);
+      transition: transform 0.2s ease;
+    }
+    .sheet.show { transform: translateY(0); }
+    .sheet-title { font-size: 16px; font-weight: 700; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
+    .sheet-title .close { font-size: 20px; color: #999999; cursor: pointer; }
+
+    .cart-item { display: flex; gap: 10px; align-items: center; background: #fff; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+    .cart-item img, .cart-item .noimg { width: 52px; height: 52px; border-radius: 6px; object-fit: cover; background: #EAE5F1; flex-shrink: 0; }
+    .cart-item .noimg { display: flex; align-items: center; justify-content: center; font-size: 10px; color: #999999; }
+    .cart-item .detail { flex: 1; min-width: 0; }
+    .cart-item .detail .name { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+    .cart-item .detail .price { font-size: 12px; color: #777777; }
+    .cart-item .qty-row { display: flex; align-items: center; gap: 6px; }
+    .cart-item .qty-row button {
+      width: 24px; height: 24px; border-radius: 6px; border: 1px solid #EAE5F1;
+      background: #F7F7F7; color: #6D5A8D; font-size: 14px; font-weight: 700; padding: 0;
+    }
+    .cart-item .qty-row span { width: 20px; text-align: center; font-size: 13px; }
+
+    .cart-total { display: flex; justify-content: space-between; font-size: 15px; font-weight: 700; padding: 12px 4px; border-top: 1px solid #EAE5F1; margin-top: 6px; }
+    .checkout-btn {
+      width: 100%; padding: 14px; font-size: 16px; font-weight: 700;
+      color: #fff; background: #6D5A8D; border: none; border-radius: 8px; margin-top: 10px;
+    }
+    .checkout-btn:disabled { background: #B7ACC9; }
+
+    .empty-cart { text-align: center; color: #999999; font-size: 13px; padding: 30px 0; }
+
+    .detail-img {
+      width: 100%; aspect-ratio: 1 / 1; border-radius: 10px; object-fit: cover;
+      background: #EAE5F1; margin-bottom: 14px;
+    }
+    .detail-noimg {
+      width: 100%; aspect-ratio: 1 / 1; border-radius: 10px; background: #EAE5F1;
+      display: flex; align-items: center; justify-content: center; color: #999999;
+      font-size: 13px; margin-bottom: 14px;
+    }
+    .detail-name { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+    .detail-price { font-size: 18px; font-weight: 700; color: #6D5A8D; margin-bottom: 16px; }
+    .option-group { margin-bottom: 16px; }
+    .option-group .option-label { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+    .option-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+    .option-choice {
+      padding: 8px 16px; border-radius: 20px; border: 1px solid #EAE5F1;
+      background: #fff; color: #222222; font-size: 13px;
+    }
+    .option-choice.selected { background: #6D5A8D; color: #fff; border-color: #6D5A8D; }
+    .detail-qty-row { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+    .detail-qty-row .qty-label { font-size: 14px; font-weight: 600; }
+    .detail-qty-row button {
+      width: 32px; height: 32px; border-radius: 8px; border: 1px solid #EAE5F1;
+      background: #F7F7F7; color: #6D5A8D; font-size: 17px; font-weight: 700; padding: 0;
+    }
+    .detail-qty-row span { width: 28px; text-align: center; font-size: 15px; }
+
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+    .field label .required { color: #e0524c; margin-left: 2px; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 11px; font-size: 15px; border: 1px solid #EAE5F1;
+      border-radius: 8px; background: #fff; color: #222222; -webkit-appearance: none;
+    }
+    .field textarea { resize: vertical; min-height: 60px; }
+
+    .payment-info {
+      background: #F7F7F7; border: 1px solid #EAE5F1; border-radius: 8px;
+      padding: 12px 14px; font-size: 14px; line-height: 1.8;
+    }
+    .payment-info div { margin-bottom: 4px; }
+    .payment-info .label { color: #777777; font-weight: 600; margin-right: 4px; }
+    .payment-info .note { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #EAE5F1; white-space: pre-wrap; color: #222222; }
+    .view-payment-link {
+      display: none;
+      font-size: 12px; color: #6D5A8D; text-decoration: underline;
+      margin-top: 6px; background: none; border: none; padding: 0; cursor: pointer;
+    }
+    .view-payment-link.show { display: inline-block; }
+
+    .status-msg { margin-top: 10px; font-size: 14px; text-align: center; }
+    .status-msg.error { color: #e0524c; }
+
+    .success-view { text-align: center; padding: 60px 20px; }
+    .success-view .icon { font-size: 48px; margin-bottom: 12px; }
+    .success-view h2 { font-size: 18px; margin-bottom: 6px; }
+    .success-view p { font-size: 13px; color: #777777; }
+
+    .rules-box {
+      background: #EAE5F1; border: 1px solid #D9D0E8; border-radius: 8px;
+      padding: 12px 14px; margin-bottom: 14px; font-size: 13px; line-height: 1.8;
+    }
+    .rules-box .rules-title { font-weight: 700; margin-bottom: 6px; }
+    .rules-box ul { margin: 0; padding-left: 18px; }
+    .agree-row { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 16px; font-size: 13px; }
+    .agree-row input { width: auto; margin-top: 2px; }
+
+    .confirm-line { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #EAE5F1; font-size: 14px; }
+    .confirm-line:last-child { border-bottom: none; }
+    .confirm-section-title { font-size: 13px; font-weight: 700; color: #777777; margin: 16px 0 8px; }
+    .confirm-total { display: flex; justify-content: space-between; font-size: 16px; font-weight: 700; padding: 12px 0 4px; }
+    .back-btn {
+      width: 100%; padding: 12px; font-size: 14px; font-weight: 600;
+      color: #6D5A8D; background: #fff; border: 1px solid #D9D0E8; border-radius: 8px; margin-top: 8px;
+    }
+
+    .fab {
+      position: fixed; right: 16px; bottom: 76px; width: 52px; height: 52px;
+      border-radius: 50%; background: #6D5A8D; color: #fff; border: none;
+      font-size: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); z-index: 9;
+      display: none; align-items: center; justify-content: center;
+    }
+    .fab.show { display: flex; }
+
+    .success-contact { margin-top: 16px; font-size: 13px; color: #6D5A8D; }
+    .success-close-btn {
+      width: 100%; padding: 14px; font-size: 15px; font-weight: 700;
+      color: #fff; background: #6D5A8D; border: none; border-radius: 8px; margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="loading">頁面載入中...</div>
+
+  <div id="shopView">
+    <header></header>
+    <div class="notice" id="notice" style="display:none;"></div>
+    <div class="grid" id="productGrid"></div>
+  </div>
+
+  <div class="cart-bar" id="cartBar" style="display:none;">
+    <span class="count" id="cartCount">購物車：0 件</span>
+    <button id="openCartBtn">查看購物車</button>
+  </div>
+
+  <div class="overlay" id="overlay"></div>
+
+  <div class="sheet" id="cartSheet">
+    <div class="sheet-title">購物車 <span class="close" id="closeCartBtn">✕</span></div>
+    <div id="cartItems"></div>
+    <div class="cart-total"><span>總計</span><span id="cartTotal">$0</span></div>
+    <button class="checkout-btn" id="goCheckoutBtn">前往結帳</button>
+  </div>
+
+  <div class="sheet" id="checkoutSheet">
+    <div class="sheet-title">填寫訂購資訊 <span class="close" id="closeCheckoutBtn">✕</span></div>
+    <form id="checkoutForm">
+      <div id="fieldsContainer"></div>
+      <button type="submit" class="checkout-btn" id="submitBtn">下一步：確認訂單</button>
+      <div class="status-msg" id="statusMsg"></div>
+    </form>
+  </div>
+
+  <div class="sheet" id="successSheet">
+    <div class="success-view">
+      <div class="icon">✅</div>
+      <h2>訂購已送出，感謝您！</h2>
+      <p id="successOrderId"></p>
+      <div id="successDetail" style="text-align:left; margin-top:16px;"></div>
+      <div class="success-contact" id="successContact" style="display:none;"></div>
+      <button type="button" class="success-close-btn" id="closeSuccessBtn">關閉</button>
+    </div>
+  </div>
+
+  <div class="sheet" id="confirmSheet">
+    <div class="sheet-title"><span>確認訂單</span><span class="close" id="closeConfirmBtn">✕</span></div>
+    <div id="confirmContent"></div>
+    <button type="button" class="checkout-btn" id="confirmSubmitBtn">確認送出訂單</button>
+    <button type="button" class="back-btn" id="backToCartBtn">回購物車修改</button>
+    <div class="status-msg" id="confirmStatusMsg"></div>
+  </div>
+
+  <button class="fab" id="contactFab" type="button">💬</button>
+
+  <div class="sheet" id="paymentSheet">
+    <div class="sheet-title">匯款資訊 <span class="close" id="closePaymentBtn">✕</span></div>
+    <div id="paymentSheetContent"></div>
+  </div>
+
+  <div class="sheet" id="productSheet">
+    <div class="sheet-title"><span>商品資訊</span><span class="close" id="closeProductBtn">✕</span></div>
+    <div id="productSheetContent"></div>
+  </div>
+
+  <script>
+    // ⚠️ 部署完 Apps Script 之後，把這裡換成你拿到的 /exec 網址
+    const API_URL = 'https://script.google.com/macros/s/AKfycbzlzcgRUzmx2fLKrdhlhOvHh55PiuQ2cjnKnAfnnlAMUJ3vHseoDzWJjID-GRFZf0trhg/exec';
+    const LIFF_ID = '2011023306-dup0EKv1';
+
+    let displayName = '';
+    let products = [];
+    let fieldConfig = [];
+    let paymentInfo = [];
+    let rules = [];
+    let contactUrl = '';
+    let cart = {}; // { productName: { name, price, image, qty } }
+
+    function showDebug(step, msg) {
+      document.getElementById('loading').innerHTML =
+        '<div style="color:#e0524c; text-align:left; font-size:13px; word-break:break-all; padding:0 16px;">' +
+        '卡在步驟：' + step + '<br><br>錯誤內容：' + msg + '</div>';
+    }
+
+    function money(n) { return 'NT$' + Number(n || 0).toLocaleString(); }
+
+    // ===== 初始化 LIFF =====
+    document.getElementById('loading').textContent = '正在初始化 LIFF...';
+
+    if (typeof liff === 'undefined') {
+      showDebug('載入 LIFF SDK', 'liff 物件不存在，SDK 檔案沒有成功載入。');
+    } else {
+      liff.init({ liffId: LIFF_ID })
+        .then(() => {
+          document.getElementById('loading').textContent = '正在確認登入狀態...';
+          if (!liff.isLoggedIn()) {
+            liff.login();
+            return;
+          }
+          document.getElementById('loading').textContent = '正在取得個人資料...';
+          return liff.getProfile();
+        })
+        .then((profile) => {
+          if (profile) {
+            displayName = profile.displayName || '';
+          }
+          document.getElementById('loading').textContent = '正在載入商店資料...';
+          return loadShop();
+        })
+        .catch((err) => {
+          showDebug('liff.init / getProfile', (err && err.message) ? err.message : JSON.stringify(err));
+        });
+    }
+
+    function loadShop() {
+      return fetch(API_URL)
+        .then((res) => res.json())
+        .then((data) => {
+          products = data.items || [];
+          fieldConfig = data.fields || [];
+          paymentInfo = data.paymentInfo || [];
+          rules = data.rules || [];
+          contactUrl = data.contactUrl || '';
+
+          if (data.notice) {
+            const noticeEl = document.getElementById('notice');
+            noticeEl.textContent = data.notice;
+            noticeEl.style.display = 'block';
+          }
+
+          if (contactUrl) {
+            const fab = document.getElementById('contactFab');
+            fab.classList.add('show');
+            fab.addEventListener('click', function () {
+              if (typeof liff !== 'undefined' && liff.isInClient()) {
+                liff.openWindow({ url: contactUrl, external: true });
+              } else {
+                window.open(contactUrl, '_blank');
+              }
+            });
+          }
+
+          renderProducts();
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('shopView').style.display = 'block';
+        })
+        .catch((err) => {
+          showDebug('讀取商店資料 (fetch)', err.message);
+        });
+    }
+
+    // ===== 商品卡片 =====
+    function renderProducts() {
+      const grid = document.getElementById('productGrid');
+      grid.innerHTML = '';
+
+      products.forEach(function (p) {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.addEventListener('click', function () { openProductSheet(p); });
+
+        if (p.image) {
+          const img = document.createElement('img');
+          img.src = p.image;
+          img.alt = p.name;
+          card.appendChild(img);
+        } else {
+          const noimg = document.createElement('div');
+          noimg.className = 'noimg';
+          noimg.textContent = '無圖片';
+          card.appendChild(noimg);
+        }
+
+        const info = document.createElement('div');
+        info.className = 'info';
+
+        const name = document.createElement('div');
+        name.className = 'name';
+        name.textContent = p.name;
+        info.appendChild(name);
+
+        const price = document.createElement('div');
+        price.className = 'price';
+        price.textContent = money(p.price);
+        info.appendChild(price);
+
+        card.appendChild(info);
+        grid.appendChild(card);
+      });
+    }
+
+    // ===== 商品詳細頁面 =====
+    function openProductSheet(product) {
+      const content = document.getElementById('productSheetContent');
+      content.innerHTML = '';
+
+      if (product.image) {
+        const img = document.createElement('img');
+        img.className = 'detail-img';
+        img.src = product.image;
+        img.alt = product.name;
+        content.appendChild(img);
+      } else {
+        const noimg = document.createElement('div');
+        noimg.className = 'detail-noimg';
+        noimg.textContent = '無圖片';
+        content.appendChild(noimg);
+      }
+
+      const name = document.createElement('div');
+      name.className = 'detail-name';
+      name.textContent = product.name;
+      content.appendChild(name);
+
+      const price = document.createElement('div');
+      price.className = 'detail-price';
+      price.textContent = money(product.price);
+      content.appendChild(price);
+
+      let selectedOption = '';
+      const hasOptions = product.optionValues && product.optionValues.length > 0;
+
+      if (hasOptions) {
+        selectedOption = product.optionValues[0];
+
+        const group = document.createElement('div');
+        group.className = 'option-group';
+        const label = document.createElement('div');
+        label.className = 'option-label';
+        label.textContent = (product.optionName || '選項') + '：' + selectedOption;
+        group.appendChild(label);
+
+        const choices = document.createElement('div');
+        choices.className = 'option-choices';
+        product.optionValues.forEach(function (val, idx) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'option-choice' + (idx === 0 ? ' selected' : '');
+          btn.textContent = val;
+          btn.addEventListener('click', function () {
+            selectedOption = val;
+            label.textContent = (product.optionName || '選項') + '：' + selectedOption;
+            choices.querySelectorAll('.option-choice').forEach(function (b) { b.classList.remove('selected'); });
+            btn.classList.add('selected');
+          });
+          choices.appendChild(btn);
+        });
+        group.appendChild(choices);
+        content.appendChild(group);
+      }
+
+      const qtyRow = document.createElement('div');
+      qtyRow.className = 'detail-qty-row';
+      const qtyLabel = document.createElement('span');
+      qtyLabel.className = 'qty-label';
+      qtyLabel.textContent = '數量';
+      const minusBtn = document.createElement('button');
+      minusBtn.type = 'button';
+      minusBtn.textContent = '−';
+      const qtySpan = document.createElement('span');
+      qtySpan.textContent = '1';
+      const plusBtn = document.createElement('button');
+      plusBtn.type = 'button';
+      plusBtn.textContent = '+';
+      let qty = 1;
+      minusBtn.addEventListener('click', function () { if (qty > 1) { qty--; qtySpan.textContent = qty; } });
+      plusBtn.addEventListener('click', function () { qty++; qtySpan.textContent = qty; });
+      qtyRow.appendChild(qtyLabel);
+      qtyRow.appendChild(minusBtn);
+      qtyRow.appendChild(qtySpan);
+      qtyRow.appendChild(plusBtn);
+      content.appendChild(qtyRow);
+
+      const addBtn = document.createElement('button');
+      addBtn.type = 'button';
+      addBtn.className = 'checkout-btn';
+      addBtn.textContent = '加入購物車';
+      addBtn.addEventListener('click', function () {
+        addToCart(product, selectedOption, qty);
+        dismissTop();
+      });
+      content.appendChild(addBtn);
+
+      openSheet(productSheet);
+    }
+
+    // ===== 購物車邏輯 =====
+    function addToCart(product, option, qty) {
+      const key = product.name + (option ? '__' + option : '');
+      if (!cart[key]) {
+        cart[key] = { name: product.name, option: option || '', price: product.price, image: product.image, qty: 0 };
+      }
+      cart[key].qty += qty;
+      updateCartBar();
+    }
+
+    function updateCartBar() {
+      const items = Object.values(cart);
+      const totalQty = items.reduce(function (sum, i) { return sum + i.qty; }, 0);
+      const bar = document.getElementById('cartBar');
+      if (totalQty > 0) {
+        bar.style.display = 'flex';
+        document.getElementById('cartCount').textContent = '購物車：' + totalQty + ' 件';
+      } else {
+        bar.style.display = 'none';
+      }
+    }
+
+    function renderCart() {
+      const container = document.getElementById('cartItems');
+      container.innerHTML = '';
+      const entries = Object.entries(cart);
+
+      if (entries.length === 0) {
+        container.innerHTML = '<div class="empty-cart">購物車是空的</div>';
+        document.getElementById('cartTotal').textContent = money(0);
+        return;
+      }
+
+      let total = 0;
+      entries.forEach(function (entry) {
+        const key = entry[0];
+        const item = entry[1];
+        total += item.price * item.qty;
+
+        const row = document.createElement('div');
+        row.className = 'cart-item';
+
+        if (item.image) {
+          const img = document.createElement('img');
+          img.src = item.image;
+          row.appendChild(img);
+        } else {
+          const noimg = document.createElement('div');
+          noimg.className = 'noimg';
+          noimg.textContent = '無圖';
+          row.appendChild(noimg);
+        }
+
+        const detail = document.createElement('div');
+        detail.className = 'detail';
+        const nameEl = document.createElement('div');
+        nameEl.className = 'name';
+        nameEl.textContent = item.name + (item.option ? '（' + item.option + '）' : '');
+        const priceEl = document.createElement('div');
+        priceEl.className = 'price';
+        priceEl.textContent = money(item.price) + ' / 件';
+        detail.appendChild(nameEl);
+        detail.appendChild(priceEl);
+        row.appendChild(detail);
+
+        const qtyRow = document.createElement('div');
+        qtyRow.className = 'qty-row';
+        const minusBtn = document.createElement('button');
+        minusBtn.type = 'button';
+        minusBtn.textContent = '−';
+        minusBtn.addEventListener('click', function () {
+          item.qty--;
+          if (item.qty <= 0) delete cart[key];
+          renderCart();
+          updateCartBar();
+        });
+        const qtySpan = document.createElement('span');
+        qtySpan.textContent = item.qty;
+        const plusBtn = document.createElement('button');
+        plusBtn.type = 'button';
+        plusBtn.textContent = '+';
+        plusBtn.addEventListener('click', function () {
+          item.qty++;
+          renderCart();
+          updateCartBar();
+        });
+        qtyRow.appendChild(minusBtn);
+        qtyRow.appendChild(qtySpan);
+        qtyRow.appendChild(plusBtn);
+        row.appendChild(qtyRow);
+
+        container.appendChild(row);
+      });
+
+      document.getElementById('cartTotal').textContent = money(total);
+    }
+
+    // ===== 面板開關 =====
+    const overlay = document.getElementById('overlay');
+    const cartSheet = document.getElementById('cartSheet');
+    const checkoutSheet = document.getElementById('checkoutSheet');
+    const successSheet = document.getElementById('successSheet');
+    const paymentSheet = document.getElementById('paymentSheet');
+    const productSheet = document.getElementById('productSheet');
+    const confirmSheet = document.getElementById('confirmSheet');
+
+    function openSheet(sheetEl) {
+      overlay.classList.add('show');
+      sheetEl.classList.add('show');
+    }
+    function closeAll() {
+      overlay.classList.remove('show');
+      [cartSheet, checkoutSheet, successSheet, paymentSheet, productSheet, confirmSheet].forEach(function (s) { s.classList.remove('show'); });
+    }
+    function dismissTop() {
+      // 依照「最上層」優先順序判斷，只關掉目前最上面那一層，不影響底下還開著的表單
+      const order = [confirmSheet, productSheet, paymentSheet, successSheet, checkoutSheet, cartSheet];
+      for (let i = 0; i < order.length; i++) {
+        if (order[i].classList.contains('show')) {
+          order[i].classList.remove('show');
+          const anyShown = [cartSheet, checkoutSheet, successSheet, paymentSheet, productSheet, confirmSheet].some(function (s) { return s.classList.contains('show'); });
+          if (!anyShown) overlay.classList.remove('show');
+          return;
+        }
+      }
+    }
+    document.getElementById('closeConfirmBtn').addEventListener('click', dismissTop);
+    document.getElementById('closeProductBtn').addEventListener('click', dismissTop);
+
+    function openPaymentSheet() {
+      const content = document.getElementById('paymentSheetContent');
+      content.innerHTML = '';
+      const box = document.createElement('div');
+      box.className = 'payment-info';
+
+      const notes = [];
+      paymentInfo.forEach(function (item) {
+        if (item.label.indexOf('注意') !== -1 || item.label.indexOf('說明') !== -1) {
+          notes.push(item.value);
+          return;
+        }
+        const line = document.createElement('div');
+        const labelSpan = document.createElement('span');
+        labelSpan.className = 'label';
+        labelSpan.textContent = item.label + '：';
+        line.appendChild(labelSpan);
+        line.appendChild(document.createTextNode(item.value));
+        box.appendChild(line);
+      });
+
+      if (notes.length > 0) {
+        const noteDiv = document.createElement('div');
+        noteDiv.className = 'note';
+        noteDiv.textContent = notes.join('\n');
+        box.appendChild(noteDiv);
+      }
+
+      content.appendChild(box);
+      openSheet(paymentSheet);
+    }
+
+    document.getElementById('closePaymentBtn').addEventListener('click', dismissTop);
+
+    document.getElementById('openCartBtn').addEventListener('click', function () {
+      renderCart();
+      openSheet(cartSheet);
+    });
+    document.getElementById('closeCartBtn').addEventListener('click', dismissTop);
+    document.getElementById('overlay').addEventListener('click', dismissTop);
+
+    document.getElementById('goCheckoutBtn').addEventListener('click', function () {
+      if (Object.keys(cart).length === 0) return;
+      dismissTop();
+      renderCheckoutFields();
+      openSheet(checkoutSheet);
+    });
+    document.getElementById('closeCheckoutBtn').addEventListener('click', dismissTop);
+
+    // ===== 結帳表單 =====
+    const TYPE_MAP = { '文字': 'text', '數字': 'number', '電話': 'tel', '日期': 'date' };
+
+    function fieldIdFor(index) { return 'ckfield_' + index; }
+
+    function renderCheckoutFields() {
+      const container = document.getElementById('fieldsContainer');
+      container.innerHTML = '';
+
+      fieldConfig.forEach(function (field, index) {
+        const wrap = document.createElement('div');
+        wrap.className = 'field';
+
+        const label = document.createElement('label');
+        label.textContent = field.label;
+        if (field.required) {
+          const req = document.createElement('span');
+          req.className = 'required';
+          req.textContent = '*';
+          label.appendChild(req);
+        }
+        wrap.appendChild(label);
+
+        let input;
+        if (field.type === '下拉選單') {
+          input = document.createElement('select');
+          const emptyOpt = document.createElement('option');
+          emptyOpt.value = '';
+          emptyOpt.textContent = '請選擇';
+          input.appendChild(emptyOpt);
+          (field.options || []).forEach(function (opt) {
+            const o = document.createElement('option');
+            o.value = opt;
+            o.textContent = opt;
+            input.appendChild(o);
+          });
+        } else if (field.type === '多行文字') {
+          input = document.createElement('textarea');
+        } else {
+          input = document.createElement('input');
+          input.type = TYPE_MAP[field.type] || 'text';
+        }
+
+        input.id = fieldIdFor(index);
+        if (field.required) input.required = true;
+        wrap.appendChild(input);
+        container.appendChild(wrap);
+
+        if (field.type === '下拉選單' && (field.options || []).indexOf('匯款') !== -1) {
+          const viewLink = document.createElement('button');
+          viewLink.type = 'button';
+          viewLink.className = 'view-payment-link';
+          viewLink.textContent = '查看匯款資訊';
+          viewLink.addEventListener('click', function () {
+            openPaymentSheet();
+          });
+          wrap.appendChild(viewLink);
+
+          input.addEventListener('change', function () {
+            if (input.value === '匯款') {
+              viewLink.classList.add('show');
+              openPaymentSheet();
+            } else {
+              viewLink.classList.remove('show');
+            }
+          });
+        }
+      });
+
+      // 下單前務必閱讀：代購規則
+      if (rules.length > 0) {
+        const rulesBox = document.createElement('div');
+        rulesBox.className = 'rules-box';
+        const title = document.createElement('div');
+        title.className = 'rules-title';
+        title.textContent = '📌 下單前務必閱讀：代購規則';
+        rulesBox.appendChild(title);
+        const ul = document.createElement('ul');
+        rules.forEach(function (r) {
+          const li = document.createElement('li');
+          li.textContent = r;
+          ul.appendChild(li);
+        });
+        rulesBox.appendChild(ul);
+        container.appendChild(rulesBox);
+
+        const agreeRow = document.createElement('label');
+        agreeRow.className = 'agree-row';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = 'agreeRulesCheckbox';
+        agreeRow.appendChild(checkbox);
+        agreeRow.appendChild(document.createTextNode('我已閱讀並同意上述規則'));
+        container.appendChild(agreeRow);
+      }
+    }
+
+    let pendingSubmission = null;
+
+    document.getElementById('checkoutForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      const statusEl = document.getElementById('statusMsg');
+      statusEl.textContent = '';
+      statusEl.className = 'status-msg';
+
+      const values = {};
+      let missing = false;
+      fieldConfig.forEach(function (field, index) {
+        const el = document.getElementById(fieldIdFor(index));
+        const val = el.value.trim();
+        values[field.label] = val;
+        if (field.required && !val) missing = true;
+      });
+
+      if (missing) {
+        statusEl.textContent = '請填寫完所有必填欄位';
+        statusEl.className = 'status-msg error';
+        return;
+      }
+
+      if (rules.length > 0) {
+        const agreeBox = document.getElementById('agreeRulesCheckbox');
+        if (!agreeBox || !agreeBox.checked) {
+          statusEl.textContent = '請先閱讀並勾選同意代購規則';
+          statusEl.className = 'status-msg error';
+          return;
+        }
+      }
+
+      const cartArray = Object.values(cart).map(function (i) {
+        return { name: i.name, option: i.option, price: i.price, qty: i.qty };
+      });
+
+      pendingSubmission = { displayName: displayName, values: values, cart: cartArray };
+      renderConfirmSheet(pendingSubmission);
+      dismissTop();
+      openSheet(confirmSheet);
+    });
+
+    function renderConfirmSheet(submission) {
+      const content = document.getElementById('confirmContent');
+      content.innerHTML = '';
+
+      const itemsTitle = document.createElement('div');
+      itemsTitle.className = 'confirm-section-title';
+      itemsTitle.textContent = '訂購品項';
+      content.appendChild(itemsTitle);
+
+      let total = 0;
+      submission.cart.forEach(function (item) {
+        const subtotal = item.price * item.qty;
+        total += subtotal;
+        const line = document.createElement('div');
+        line.className = 'confirm-line';
+        const left = document.createElement('span');
+        left.textContent = item.name + (item.option ? '（' + item.option + '）' : '') + ' × ' + item.qty;
+        const right = document.createElement('span');
+        right.textContent = money(subtotal);
+        line.appendChild(left);
+        line.appendChild(right);
+        content.appendChild(line);
+      });
+
+      const totalRow = document.createElement('div');
+      totalRow.className = 'confirm-total';
+      totalRow.innerHTML = '<span>總計</span><span>' + money(total) + '</span>';
+      content.appendChild(totalRow);
+
+      const infoTitle = document.createElement('div');
+      infoTitle.className = 'confirm-section-title';
+      infoTitle.textContent = '訂購資訊';
+      content.appendChild(infoTitle);
+
+      Object.keys(submission.values).forEach(function (label) {
+        const line = document.createElement('div');
+        line.className = 'confirm-line';
+        line.innerHTML = '<span>' + label + '</span><span>' + (submission.values[label] || '—') + '</span>';
+        content.appendChild(line);
+      });
+    }
+
+    document.getElementById('backToCartBtn').addEventListener('click', function () {
+      dismissTop();
+      renderCheckoutFields();
+      openSheet(checkoutSheet);
+    });
+
+    document.getElementById('confirmSubmitBtn').addEventListener('click', function () {
+      if (!pendingSubmission) return;
+      const statusEl = document.getElementById('confirmStatusMsg');
+      const submitBtn = document.getElementById('confirmSubmitBtn');
+      statusEl.textContent = '';
+      statusEl.className = 'status-msg';
+      submitBtn.disabled = true;
+      submitBtn.textContent = '送出中...';
+
+      fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(pendingSubmission)
+      })
+        .then((res) => res.json())
+        .then((result) => {
+          if (!result.success) throw new Error(result.error || '未知錯誤');
+          showSuccess(pendingSubmission, result.orderId);
+          cart = {};
+          pendingSubmission = null;
+          updateCartBar();
+        })
+        .catch((err) => {
+          statusEl.textContent = '送出失敗：' + err.message;
+          statusEl.className = 'status-msg error';
+          submitBtn.disabled = false;
+          submitBtn.textContent = '確認送出訂單';
+        });
+    });
+
+    function showSuccess(submission, orderId) {
+      closeAll();
+      document.getElementById('successOrderId').textContent = '訂單編號：' + orderId;
+
+      const detail = document.getElementById('successDetail');
+      detail.innerHTML = '';
+      let total = 0;
+      submission.cart.forEach(function (item) {
+        const subtotal = item.price * item.qty;
+        total += subtotal;
+        const line = document.createElement('div');
+        line.className = 'confirm-line';
+        line.innerHTML = '<span>' + item.name + (item.option ? '（' + item.option + '）' : '') + ' × ' + item.qty + '</span><span>' + money(subtotal) + '</span>';
+        detail.appendChild(line);
+      });
+      const totalRow = document.createElement('div');
+      totalRow.className = 'confirm-total';
+      totalRow.innerHTML = '<span>總計</span><span>' + money(total) + '</span>';
+      detail.appendChild(totalRow);
+
+      const contactEl = document.getElementById('successContact');
+      if (contactUrl) {
+        contactEl.style.display = 'block';
+        contactEl.textContent = '有任何問題，請點右下角聯絡按鈕與我們聯繫';
+      } else {
+        contactEl.style.display = 'none';
+      }
+
+      const submitBtn = document.getElementById('confirmSubmitBtn');
+      submitBtn.disabled = false;
+      submitBtn.textContent = '確認送出訂單';
+
+      openSheet(successSheet);
+    }
+
+    document.getElementById('closeSuccessBtn').addEventListener('click', function () {
+      closeAll();
+      if (typeof liff !== 'undefined' && liff.isInClient()) liff.closeWindow();
+    });
+  </script>
+</body>
+</html>
