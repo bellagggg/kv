@@ -68,10 +68,10 @@ header{height:180px;background:url('./7C608754-2BEA-4C40-89CE-190A9721D7E6.jpeg'
 <div id="notice" class="notice hidden"></div>
 <div class="toolbar">
   <div class="actions" style="padding:0 0 4px">
-    <button class="outline" id="ordersBtn">📦 我的訂單</button>
-    <button class="outline" id="pickupBtn">📮 代收登記</button>
-    <button class="outline" id="rulesBtn">📌 購買規則</button>
-    <button class="outline" id="contactBtn2">💬 聯絡賣家</button>
+    <button class="outline" id="ordersBtn">我的訂單</button>
+    <button class="outline" id="pickupBtn">代收登記</button>
+    <button class="outline" id="rulesBtn">購買規則</button>
+    <button class="outline" id="contactBtn2">聯絡kv</button>
   </div>
   <div id="cats" class="categories"></div>
   <div id="count" class="result-count"></div>
@@ -100,7 +100,7 @@ header{height:180px;background:url('./7C608754-2BEA-4C40-89CE-190A9721D7E6.jpeg'
 
 <div id="pickupSheet" class="sheet">
   <div class="title">代收登記<span class="close" data-close>✕</span></div>
-  <div class="small" style="margin-bottom:12px">請填寫商品名稱、托運單號末四碼及出貨國家。三項資料會一起保存到 Google Sheet 的「代收登記」分頁。</div>
+  <div class="small" style="margin-bottom:12px">出貨國家為必填。商品名稱、托運單號末四碼請至少填寫一個，未填的那一項可以之後再補上。</div>
   <div id="pickupList"></div>
   <button class="btn secondary" id="newPickupBtn">＋ 新增代收登記</button>
   <div id="pickupForm" class="hidden">
@@ -113,7 +113,7 @@ header{height:180px;background:url('./7C608754-2BEA-4C40-89CE-190A9721D7E6.jpeg'
   </div>
 </div>
 
-<div id="editSheet" class="sheet"><div class="title">修改訂單資料<span class="close" data-close>✕</span></div><div class="small">商品內容與金額無法由客人自行修改。</div><div id="editFields"></div><button class="btn" id="saveEdit">儲存修改</button><div id="editMsg"></div></div>
+<div id="editSheet" class="sheet"><div class="title">修改訂單資料<span class="close" data-close>✕</span></div><div class="small">商品內容與金額無法自行修改。</div><div id="editFields"></div><button class="btn" id="saveEdit">儲存修改</button><div id="editMsg"></div></div>
 <div id="rulesSheet" class="sheet"><div class="title">購買規則<span class="close" data-close>✕</span></div><div id="allRules" class="rules"></div></div>
 
 <script>
